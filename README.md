@@ -11,12 +11,12 @@
 # run
 
 - start Kafka
-  - > make kafka_up
+  - $> make kafka_up
 - stop Kafka
-  - > make kafka_down
+  - $> make kafka_down
 - start producer and consumer
-  - > make producer
-  - > make consumer
+  - $> make producer
+  - $> make consumer
 
 Starting the producer will also start mock clients, one which is Mastodon.
 
