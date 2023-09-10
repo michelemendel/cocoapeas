@@ -1,23 +1,46 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
-	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/michelemendel/cocopeas/clients"
+	"github.com/michelemendel/cocopeas/entities"
 	"github.com/michelemendel/cocopeas/utils"
 	"golang.org/x/exp/slog"
 )
+
+//
+// This starts the Kafka producer and mock clients.
+//
 
 func init() {
 	utils.InitEnv()
 }
 
-// Read from Mastodon and produce to Kafka
+func main() {
+	slog.Debug("[PRODUCER]:start...")
+	mh := makeMessageHandler()
+	defer mh.kafkaProducer.Close()
+
+	// Setup mock mockClients
+	mockClients := []clients.Client{
+		clients.MakeClient("mastodon", "Mastodon_message", []string{"abe", "bob", "carl"}),
+		clients.MakeClient("other", "Other_Message", []string{"anna", "bea", "carol"}),
+	}
+
+	for _, client := range mockClients {
+		go messageReceiver(mh, client)
+		go clients.StartMockClientLoops(client)
+	}
+
+	// Just to keep the main thread alive. Not for production.
+	<-make(chan struct{})
+}
+
 type MessageHandler struct {
 	kafkaProducer *kafka.Producer
-	// todo: Add variable to something that reads messages from e.g. Mastodon
 }
 
 func makeMessageHandler() *MessageHandler {
@@ -26,29 +49,26 @@ func makeMessageHandler() *MessageHandler {
 	}
 }
 
-func main() {
-	slog.Debug("[PRODUCER]:Init producer")
-
-	mh := makeMessageHandler()
-	defer mh.kafkaProducer.Close()
-	topic := os.Getenv("TOPIC_MASTODON")
-	// topic := "TOPIC_MASTODON"
-
-	for i := 0; i < 3; i++ {
-		now := time.Now().UnixMilli()
-		mh.ProduceMessage(topic, fmt.Sprintf("PING_%d", now))
-		time.Sleep(1 * time.Second)
+func messageReceiver(mh *MessageHandler, client clients.Client) {
+	for msg := range client.Ch {
+		mh.ProduceMessage(msg)
 	}
-	mh.kafkaProducer.Flush(15 * 1000)
 }
 
-func (mh *MessageHandler) ProduceMessage(topic string, message string) {
-	err := mh.kafkaProducer.Produce(&kafka.Message{
+// Send a message to the Kafka topic
+func (mh *MessageHandler) ProduceMessage(message entities.Message) {
+	msgAsBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.Error("[PRODUCER]:Failed to marshal message", "err", err)
+		return
+	}
+
+	err = mh.kafkaProducer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic:     &topic,
+			Topic:     &message.Client,
 			Partition: kafka.PartitionAny,
 		},
-		Value: []byte(message),
+		Value: msgAsBytes,
 	}, nil)
 	if err != nil {
 		slog.Error("[PRODUCER]:Failed to produce message", "err", err)
@@ -56,7 +76,9 @@ func (mh *MessageHandler) ProduceMessage(topic string, message string) {
 }
 
 func makeProducer() *kafka.Producer {
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": os.Getenv("BOOTSTRAP_SERVERS")})
+	p, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -64,6 +86,7 @@ func makeProducer() *kafka.Producer {
 	return p
 }
 
+// Feedback on the delivery of messages
 func deliveryCheck(p *kafka.Producer) {
 	for e := range p.Events() {
 		switch ev := e.(type) {

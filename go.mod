@@ -7,4 +7,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 )
 
-require golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+require (
+	github.com/segmentio/ksuid v1.0.4 // indirect
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+)

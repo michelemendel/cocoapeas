@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/joho/godotenv"
+	"github.com/segmentio/ksuid"
 )
 
 func HandleInterrupts(postOps ...func()) {
@@ -47,4 +49,26 @@ func GetRootDir() string {
 	cwd, _ := os.Getwd()
 	rootDir := projectName.Find([]byte(cwd))
 	return string(rootDir)
+}
+
+type UUID string
+
+func GenerateUUID() UUID {
+	return UUID(ksuid.New().String())
+}
+
+func PP(s any) {
+	res, err := PrettyStruct(s)
+	if err != nil {
+		log.Panic(err)
+	}
+	fmt.Println(res)
+}
+
+func PrettyStruct(data interface{}) (string, error) {
+	val, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return "", err
+	}
+	return string(val), nil
 }
