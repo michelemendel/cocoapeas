@@ -1,4 +1,4 @@
-# cocoapeas
+# cocopeas
 
 # requirements
 
@@ -15,8 +15,8 @@
 - stop Kafka
   - $> make kafka_down
 - start producer and consumer
-  - $> make producer
   - $> make consumer
+  - $> make producer
 
 Starting the producer will also start mock clients, one which is Mastodon.
 

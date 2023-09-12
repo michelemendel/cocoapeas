@@ -30,7 +30,7 @@ func InitEnv() {
 	once.Do(InitEnvExec)
 }
 
-const projectDirName = "cocoapeas"
+const projectDirName = "cocopeas"
 
 func InitEnvExec() {
 	// fmt.Println("Initializing environment...")
